@@ -1,3 +1,5 @@
+from core.models.assignments import AssignmentStateEnum, GradeEnum
+
 def test_get_assignments_teacher_1(client, h_teacher_1):
     response = client.get(
         '/teacher/assignments',
@@ -26,9 +28,9 @@ def test_get_assignments_teacher_2(client, h_teacher_2):
 
 
 def test_grade_assignment_cross(client, h_teacher_2):
-    """
-    failure case: assignment 1 was submitted to teacher 1 and not teacher 2
-    """
+    
+    #Failure case: assignment 1 was submitted to teacher 1 and not teacher 2
+    
     response = client.post(
         '/teacher/assignments/grade',
         headers=h_teacher_2,
@@ -45,9 +47,9 @@ def test_grade_assignment_cross(client, h_teacher_2):
 
 
 def test_grade_assignment_bad_grade(client, h_teacher_1):
-    """
-    failure case: API should allow only grades available in enum
-    """
+    
+    #failure case: API should only allow grades available in enum
+    
     response = client.post(
         '/teacher/assignments/grade',
         headers=h_teacher_1,
@@ -64,9 +66,9 @@ def test_grade_assignment_bad_grade(client, h_teacher_1):
 
 
 def test_grade_assignment_bad_assignment(client, h_teacher_1):
-    """
-    failure case: If an assignment does not exists check and throw 404
-    """
+    
+    #failure case: If an assignment does not exists check and throw 404
+    
     response = client.post(
         '/teacher/assignments/grade',
         headers=h_teacher_1,
@@ -83,9 +85,9 @@ def test_grade_assignment_bad_assignment(client, h_teacher_1):
 
 
 def test_grade_assignment_draft_assignment(client, h_teacher_1):
-    """
-    failure case: only a submitted assignment can be graded
-    """
+    
+    #failure case: only a submitted assignment can be graded
+    
     response = client.post(
         '/teacher/assignments/grade',
         headers=h_teacher_1
@@ -99,3 +101,26 @@ def test_grade_assignment_draft_assignment(client, h_teacher_1):
     data = response.json
 
     assert data['error'] == 'FyleError'
+
+def test_grade_assignment_by_teacher_my(client, h_teacher_1):
+    
+    #Failure case: an assignment can't be graded more than once by a teacher
+    
+    response = client.post(
+        '/teacher/assignments/grade',
+        headers=h_teacher_1,
+        json={
+            "id": 7,
+            "grade": GradeEnum.A.value
+        }
+    )
+
+    try:
+        assert response.status_code == 200
+        assert response.json['data']['state'] == AssignmentStateEnum.GRADED.value
+        assert response.json['data']['grade'] == GradeEnum.A
+    except AssertionError:
+        assert response.status_code == 400
+        data = response.json
+        assert data['error'] == 'FyleError'
+        assert data['message'] == 'Assignment is already graded'
